@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Alert } from "@/components/ui/Alert";
 import { api } from "@/lib/api";
 import type { Slot } from "@/lib/types";
 
@@ -14,6 +15,7 @@ export default function MySlots() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const fetchSlots = async () => {
     try {
@@ -30,6 +32,15 @@ export default function MySlots() {
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
+    if (!startTime || !endTime) {
+      setError("Please choose both a start and end time.");
+      return;
+    }
+    if (new Date(endTime) <= new Date(startTime)) {
+      setError("End time must be after start time.");
+      return;
+    }
+    setError("");
     setSubmitting(true);
     try {
       await api.post("/slots", { start_time: startTime, end_time: endTime });
@@ -40,7 +51,7 @@ export default function MySlots() {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? "Failed to create slot"
         : "Failed to create slot";
-      alert(msg);
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -54,7 +65,7 @@ export default function MySlots() {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? "Failed to delete slot"
         : "Failed to delete slot";
-      alert(msg);
+      setError(msg);
     }
   };
 
@@ -71,6 +82,11 @@ export default function MySlots() {
         <h2 className="text-xs tracking-[3px] uppercase text-muted-foreground mb-6">
           Create a new slot
         </h2>
+        {error && (
+          <Alert variant="error" className="mb-5">
+            {error}
+          </Alert>
+        )}
         <form
           onSubmit={handleCreate}
           className="flex flex-col md:flex-row md:items-end gap-4"

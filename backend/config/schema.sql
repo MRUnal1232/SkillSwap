@@ -37,11 +37,11 @@ CREATE TABLE user_skills (
 -- 4. TimeSlots - mentors create available time slots
 CREATE TABLE time_slots (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
+  mentor_id INT NOT NULL,               -- the mentor offering this window
   start_time DATETIME NOT NULL,
   end_time DATETIME NOT NULL,
   is_booked BOOLEAN DEFAULT FALSE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  FOREIGN KEY (mentor_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- 5. Sessions - records of booked mentorship sessions
@@ -86,7 +86,7 @@ CREATE TABLE chat_messages (
 CREATE TABLE transactions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  credits INT NOT NULL,
+  amount INT NOT NULL,                  -- delta moved (not the balance)
   type ENUM('earned', 'spent') NOT NULL,
   reason VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -96,7 +96,7 @@ CREATE TABLE transactions (
 -- Indexes for performance (frequently queried columns)
 CREATE INDEX idx_user_skills_user ON user_skills(user_id);
 CREATE INDEX idx_user_skills_skill ON user_skills(skill_id);
-CREATE INDEX idx_time_slots_user ON time_slots(user_id);
+CREATE INDEX idx_time_slots_mentor ON time_slots(mentor_id);
 CREATE INDEX idx_sessions_mentor ON sessions(mentor_id);
 CREATE INDEX idx_sessions_learner ON sessions(learner_id);
 CREATE INDEX idx_chat_sender ON chat_messages(sender_id);

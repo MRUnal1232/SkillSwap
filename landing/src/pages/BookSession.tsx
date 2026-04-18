@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
+import { Alert } from "@/components/ui/Alert";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import type { Slot, UserProfile } from "@/lib/types";
@@ -22,6 +23,7 @@ export default function BookSession() {
   const [selectedSlot, setSelectedSlot] = useState("");
   const [selectedSkill, setSelectedSkill] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!mentorId) return;
@@ -36,10 +38,19 @@ export default function BookSession() {
   }, [mentorId]);
 
   const handleBook = async () => {
-    if (!selectedSlot || !selectedSkill) {
-      alert("Please select a skill and a time slot.");
+    if (!selectedSkill && !selectedSlot) {
+      setError("Please select a skill and a time slot to continue.");
       return;
     }
+    if (!selectedSkill) {
+      setError("Please select a skill to learn.");
+      return;
+    }
+    if (!selectedSlot) {
+      setError("Please select a time slot.");
+      return;
+    }
+    setError("");
     setSubmitting(true);
     try {
       await api.post("/sessions/book", {
@@ -53,7 +64,7 @@ export default function BookSession() {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? "Booking failed"
         : "Booking failed";
-      alert(msg);
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -102,12 +113,17 @@ export default function BookSession() {
         </div>
 
         <div className="liquid-glass rounded-2xl p-6 md:p-8 space-y-6">
+          {error && <Alert variant="error">{error}</Alert>}
+
           <div>
             <Label htmlFor="skill">Select Skill</Label>
             <Select
               id="skill"
               value={selectedSkill}
-              onChange={(e) => setSelectedSkill(e.target.value)}
+              onChange={(e) => {
+                setSelectedSkill(e.target.value);
+                if (e.target.value) setError("");
+              }}
             >
               <option value="">Choose a skill to learn</option>
               {mentorProfile.offeredSkills.map((s) => (
@@ -128,7 +144,10 @@ export default function BookSession() {
               <Select
                 id="slot"
                 value={selectedSlot}
-                onChange={(e) => setSelectedSlot(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSlot(e.target.value);
+                  if (e.target.value) setError("");
+                }}
               >
                 <option value="">Choose a time slot</option>
                 {slots.map((slot) => (

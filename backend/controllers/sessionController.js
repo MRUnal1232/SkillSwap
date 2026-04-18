@@ -65,11 +65,11 @@ const bookSession = async (req, res) => {
 
     // 7. Record transactions for audit
     await conn.query(
-      "INSERT INTO transactions (user_id, credits, type, reason) VALUES (?, ?, 'spent', ?)",
+      "INSERT INTO transactions (user_id, amount, type, reason) VALUES (?, ?, 'spent', ?)",
       [learner_id, CREDIT_COST, `Booked session #${result.insertId}`]
     );
     await conn.query(
-      "INSERT INTO transactions (user_id, credits, type, reason) VALUES (?, ?, 'earned', ?)",
+      "INSERT INTO transactions (user_id, amount, type, reason) VALUES (?, ?, 'earned', ?)",
       [mentor_id, CREDIT_COST, `Session #${result.insertId} booked by learner`]
     );
 

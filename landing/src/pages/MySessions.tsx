@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Label } from "@/components/ui/Label";
+import { Alert } from "@/components/ui/Alert";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import type { Session, SessionStatus } from "@/lib/types";
@@ -25,6 +26,13 @@ export default function MySessions() {
     rating: 5,
     comment: "",
   });
+  const [error, setError] = useState("");
+  const [reviewError, setReviewError] = useState("");
+
+  const closeReview = () => {
+    setReview({ session_id: null, rating: 5, comment: "" });
+    setReviewError("");
+  };
 
   const fetchSessions = async () => {
     try {
@@ -40,6 +48,7 @@ export default function MySessions() {
   }, []);
 
   const updateStatus = async (id: number, status: SessionStatus) => {
+    setError("");
     try {
       await api.put(`/sessions/${id}/status`, { status });
       fetchSessions();
@@ -48,20 +57,25 @@ export default function MySessions() {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? "Failed to update"
         : "Failed to update";
-      alert(msg);
+      setError(msg);
     }
   };
 
   const submitReview = async () => {
+    if (review.rating < 1 || review.rating > 5) {
+      setReviewError("Please choose a rating between 1 and 5 stars.");
+      return;
+    }
+    setReviewError("");
     try {
       await api.post("/reviews", review);
-      setReview({ session_id: null, rating: 5, comment: "" });
+      closeReview();
       fetchSessions();
     } catch (err) {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? "Failed to submit review"
         : "Failed to submit review";
-      alert(msg);
+      setReviewError(msg);
     }
   };
 
@@ -74,6 +88,11 @@ export default function MySessions() {
       }
       subtitle="Track your booked, completed, and cancelled sessions."
     >
+      {error && (
+        <Alert variant="error" className="mb-6">
+          {error}
+        </Alert>
+      )}
       {sessions.length === 0 ? (
         <div className="border border-dashed border-border/50 rounded-2xl px-6 py-16 text-center text-muted-foreground">
           No sessions yet. Visit the Marketplace to book your first session.
@@ -167,7 +186,7 @@ export default function MySessions() {
       {review.session_id !== null && (
         <div
           className="fixed inset-0 z-[60] bg-background/85 backdrop-blur-sm flex items-center justify-center px-6"
-          onClick={() => setReview({ session_id: null, rating: 5, comment: "" })}
+          onClick={() => closeReview()}
         >
           <div
             className="liquid-glass rounded-3xl p-8 md:p-10 w-full max-w-md"
@@ -177,6 +196,7 @@ export default function MySessions() {
               Leave a <span className="font-serif italic font-normal">review</span>
             </h3>
             <div className="space-y-5">
+              {reviewError && <Alert variant="error">{reviewError}</Alert>}
               <div>
                 <Label htmlFor="rating">Rating</Label>
                 <Select
@@ -212,7 +232,7 @@ export default function MySessions() {
                 <Button
                   variant="outline"
                   onClick={() =>
-                    setReview({ session_id: null, rating: 5, comment: "" })
+                    closeReview()
                   }
                 >
                   Cancel

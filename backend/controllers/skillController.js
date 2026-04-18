@@ -26,8 +26,9 @@ const searchMentors = async (req, res) => {
       LEFT JOIN sessions ses ON ses.mentor_id = u.id
       LEFT JOIN reviews r ON r.session_id = ses.id
       WHERE us.type = 'offer'
+        AND u.id <> ?
     `;
-    const params = [];
+    const params = [req.user.id];
 
     if (skill) {
       query += " AND s.skill_name LIKE ?";

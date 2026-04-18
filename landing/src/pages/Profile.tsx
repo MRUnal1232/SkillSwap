@@ -5,6 +5,7 @@ import { Star, X, Plus, Calendar } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { Alert } from "@/components/ui/Alert";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import type { Review, Skill, UserProfile } from "@/lib/types";
@@ -17,6 +18,7 @@ export default function Profile() {
   const [selectedSkill, setSelectedSkill] = useState("");
   const [skillType, setSkillType] = useState<"offer" | "learn">("offer");
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [skillError, setSkillError] = useState("");
 
   const isOwnProfile = !!user && user.id === Number(id);
 
@@ -35,7 +37,11 @@ export default function Profile() {
   };
 
   const handleAddSkill = async () => {
-    if (!selectedSkill) return;
+    if (!selectedSkill) {
+      setSkillError("Please select a skill before adding.");
+      return;
+    }
+    setSkillError("");
     try {
       await api.post("/users/skills", {
         skill_id: Number(selectedSkill),
@@ -47,7 +53,7 @@ export default function Profile() {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? "Failed to add skill"
         : "Failed to add skill";
-      alert(msg);
+      setSkillError(msg);
     }
   };
 
@@ -58,8 +64,11 @@ export default function Profile() {
     try {
       await api.delete("/users/skills", { data: { skill_id, type } });
       reload();
-    } catch {
-      alert("Failed to remove skill");
+    } catch (err) {
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? "Failed to remove skill"
+        : "Failed to remove skill";
+      setSkillError(msg);
     }
   };
 
@@ -146,11 +155,20 @@ export default function Profile() {
 
       {isOwnProfile && (
         <Section title="Add a Skill">
+          {skillError && (
+            <Alert variant="error" className="mb-4">
+              {skillError}
+            </Alert>
+          )}
           <div className="flex flex-col md:flex-row gap-3">
             <Select
               value={selectedSkill}
-              onChange={(e) => setSelectedSkill(e.target.value)}
+              onChange={(e) => {
+                setSelectedSkill(e.target.value);
+                if (e.target.value) setSkillError("");
+              }}
               className="flex-1"
+              aria-invalid={!!skillError}
             >
               <option value="">Select a skill</option>
               {skills.map((s) => (

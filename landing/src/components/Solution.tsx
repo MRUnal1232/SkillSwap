@@ -1,8 +1,6 @@
 import { motion } from "framer-motion";
 import { fadeUp } from "@/lib/utils";
-
-const SOLUTION_VIDEO =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260325_125119_8e5ae31c-0021-4396-bc08-f7aebeb877a2.mp4";
+import { SolutionVisual } from "./SolutionVisual";
 
 const features = [
   {
@@ -47,18 +45,8 @@ export function Solution() {
           skill exchange
         </motion.h2>
 
-        <motion.div
-          {...fadeUp(0.2)}
-          className="mt-16 md:mt-20 rounded-2xl overflow-hidden aspect-[3/1]"
-        >
-          <video
-            className="w-full h-full object-cover"
-            src={SOLUTION_VIDEO}
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
+        <motion.div {...fadeUp(0.2)} className="mt-16 md:mt-20">
+          <SolutionVisual />
         </motion.div>
 
         <div className="grid md:grid-cols-4 gap-8 mt-16 md:mt-20">

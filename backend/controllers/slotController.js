@@ -12,7 +12,7 @@ const createSlot = async (req, res) => {
     }
 
     const [result] = await pool.query(
-      "INSERT INTO time_slots (user_id, start_time, end_time) VALUES (?, ?, ?)",
+      "INSERT INTO time_slots (mentor_id, start_time, end_time) VALUES (?, ?, ?)",
       [user_id, start_time, end_time]
     );
 
@@ -29,7 +29,7 @@ const getMentorSlots = async (req, res) => {
     const { mentor_id } = req.params;
 
     const [slots] = await pool.query(
-      "SELECT * FROM time_slots WHERE user_id = ? AND is_booked = FALSE AND start_time > NOW() ORDER BY start_time",
+      "SELECT * FROM time_slots WHERE mentor_id = ? AND is_booked = FALSE AND start_time > NOW() ORDER BY start_time",
       [mentor_id]
     );
 
@@ -43,7 +43,7 @@ const getMentorSlots = async (req, res) => {
 const getMySlots = async (req, res) => {
   try {
     const [slots] = await pool.query(
-      "SELECT * FROM time_slots WHERE user_id = ? ORDER BY start_time DESC",
+      "SELECT * FROM time_slots WHERE mentor_id = ? ORDER BY start_time DESC",
       [req.user.id]
     );
     res.json(slots);
@@ -58,7 +58,7 @@ const deleteSlot = async (req, res) => {
     const { id } = req.params;
 
     const [slot] = await pool.query(
-      "SELECT * FROM time_slots WHERE id = ? AND user_id = ?",
+      "SELECT * FROM time_slots WHERE id = ? AND mentor_id = ?",
       [id, req.user.id]
     );
 
