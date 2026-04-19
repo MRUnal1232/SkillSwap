@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { ChatSocketProvider } from "@/context/ChatSocketContext";
+import { ToastStack } from "@/components/ToastStack";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
@@ -41,6 +43,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ChatSocketProvider>
         <Routes>
           <Route path="/" element={<Home />} />
 
@@ -113,6 +116,8 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ToastStack />
+        </ChatSocketProvider>
       </AuthProvider>
     </BrowserRouter>
   );

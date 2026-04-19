@@ -5,9 +5,7 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
-
-const MISSION_VIDEO =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260325_132944_a0d124bb-eaa1-4082-aa30-2310efb42b4b.mp4";
+import { MissionVisual } from "./MissionVisual";
 
 const PARAGRAPH_ONE =
   "We're building a space where curiosity meets possibility — where learners find mentors, teachers find students, and every skill becomes a conversation worth having.";
@@ -60,14 +58,7 @@ export function Mission() {
     <section ref={containerRef} className="pt-0 pb-32 md:pb-44 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-center mb-20 md:mb-28">
-          <video
-            className="w-full max-w-[800px] aspect-square object-cover rounded-3xl"
-            src={MISSION_VIDEO}
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
+          <MissionVisual />
         </div>
 
         <p className="text-2xl md:text-4xl lg:text-5xl font-medium tracking-[-1px] leading-[1.2] text-center">

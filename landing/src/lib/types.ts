@@ -37,6 +37,10 @@ export interface Review {
 
 export interface Slot {
   id: number;
+  user_id?: number;
+  skill_id: number;
+  skill_name: string;
+  category: string;
   start_time: string;
   end_time: string;
   is_booked: boolean;

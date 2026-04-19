@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useChatSocket } from "@/context/ChatSocketContext";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ const appLinks = [
 
 export function AppNavbar() {
   const { user, logout } = useAuth();
+  const { totalUnread } = useChatSocket();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -37,12 +39,17 @@ export function AppNavbar() {
               to={link.to}
               className={({ isActive }) =>
                 cn(
-                  "px-3 py-2 rounded-md text-muted-foreground hover:text-foreground transition-colors",
+                  "relative px-3 py-2 rounded-md text-muted-foreground hover:text-foreground transition-colors",
                   isActive && "text-foreground"
                 )
               }
             >
               {link.label}
+              {link.to === "/chat" && totalUnread > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-foreground text-background text-[10px] font-bold leading-none">
+                  {totalUnread > 99 ? "99+" : totalUnread}
+                </span>
+              )}
             </NavLink>
           ))}
           {user && (
@@ -93,12 +100,17 @@ export function AppNavbar() {
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 cn(
-                  "px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground",
+                  "px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground flex items-center justify-between",
                   isActive && "text-foreground"
                 )
               }
             >
-              {link.label}
+              <span>{link.label}</span>
+              {link.to === "/chat" && totalUnread > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-foreground text-background text-[10px] font-bold leading-none">
+                  {totalUnread > 99 ? "99+" : totalUnread}
+                </span>
+              )}
             </NavLink>
           ))}
           {user && (

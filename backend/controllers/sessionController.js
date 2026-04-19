@@ -2,23 +2,24 @@ const pool = require("../config/db");
 
 const CREDIT_COST = 10; // credits per session
 
-// BOOK a session - the core business logic
-// Learning: This uses a DATABASE TRANSACTION to ensure all operations succeed or all fail
-// If credits deduction succeeds but slot booking fails, everything rolls back
+// BOOK a session — core business flow.
+// All operations run inside one DB transaction so either everything commits
+// or everything rolls back (no half-booked sessions, no lost credits).
 const bookSession = async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { mentor_id, skill_id, slot_id } = req.body;
+    const { slot_id } = req.body;
     const learner_id = req.user.id;
 
-    // Can't book yourself
-    if (learner_id === mentor_id) {
-      return res.status(400).json({ message: "You cannot book a session with yourself" });
+    if (!slot_id) {
+      return res.status(400).json({ message: "Please pick a slot to book" });
     }
 
     await conn.beginTransaction();
 
-    // 1. Check slot is available (lock the row to prevent double booking)
+    // 1. Lock and read the slot. Skill and mentor are both derived from it
+    //    so there's no chance of a mismatch between what the learner picked
+    //    and what the mentor is actually offering.
     const [slots] = await conn.query(
       "SELECT * FROM time_slots WHERE id = ? AND is_booked = FALSE FOR UPDATE",
       [slot_id]
@@ -26,6 +27,16 @@ const bookSession = async (req, res) => {
     if (slots.length === 0) {
       await conn.rollback();
       return res.status(400).json({ message: "Slot is not available" });
+    }
+    const slot = slots[0];
+    const mentor_id = slot.user_id;
+    const skill_id = slot.skill_id;
+
+    if (learner_id === mentor_id) {
+      await conn.rollback();
+      return res
+        .status(400)
+        .json({ message: "You cannot book a session with yourself" });
     }
 
     // 2. Verify learner has enough credits
@@ -38,43 +49,43 @@ const bookSession = async (req, res) => {
       return res.status(400).json({ message: "Not enough credits" });
     }
 
-    // 3. Deduct credits from learner
-    await conn.query(
-      "UPDATE users SET credits = credits - ? WHERE id = ?",
-      [CREDIT_COST, learner_id]
-    );
+    // 3. Move credits: learner -> mentor
+    await conn.query("UPDATE users SET credits = credits - ? WHERE id = ?", [
+      CREDIT_COST,
+      learner_id,
+    ]);
+    await conn.query("UPDATE users SET credits = credits + ? WHERE id = ?", [
+      CREDIT_COST,
+      mentor_id,
+    ]);
 
-    // 4. Add credits to mentor
-    await conn.query(
-      "UPDATE users SET credits = credits + ? WHERE id = ?",
-      [CREDIT_COST, mentor_id]
-    );
+    // 4. Mark slot as booked
+    await conn.query("UPDATE time_slots SET is_booked = TRUE WHERE id = ?", [
+      slot_id,
+    ]);
 
-    // 5. Mark slot as booked
-    await conn.query(
-      "UPDATE time_slots SET is_booked = TRUE WHERE id = ?",
-      [slot_id]
-    );
-
-    // 6. Create session record
-    const slot = slots[0];
+    // 5. Create session record (times copied from the slot at booking time)
     const [result] = await conn.query(
-      "INSERT INTO sessions (mentor_id, learner_id, skill_id, slot_id, status) VALUES (?, ?, ?, ?, 'booked')",
-      [mentor_id, learner_id, skill_id, slot_id]
+      `INSERT INTO sessions
+         (mentor_id, learner_id, skill_id, start_time, end_time, status)
+       VALUES (?, ?, ?, ?, ?, 'booked')`,
+      [mentor_id, learner_id, skill_id, slot.start_time, slot.end_time]
     );
 
-    // 7. Record transactions for audit
+    // 6. Ledger entries for audit
     await conn.query(
-      "INSERT INTO transactions (user_id, amount, type, reason) VALUES (?, ?, 'spent', ?)",
+      "INSERT INTO transactions (user_id, credits, type, reason) VALUES (?, ?, 'spent', ?)",
       [learner_id, CREDIT_COST, `Booked session #${result.insertId}`]
     );
     await conn.query(
-      "INSERT INTO transactions (user_id, amount, type, reason) VALUES (?, ?, 'earned', ?)",
+      "INSERT INTO transactions (user_id, credits, type, reason) VALUES (?, ?, 'earned', ?)",
       [mentor_id, CREDIT_COST, `Session #${result.insertId} booked by learner`]
     );
 
     await conn.commit();
-    res.status(201).json({ message: "Session booked successfully", sessionId: result.insertId });
+    res
+      .status(201)
+      .json({ message: "Session booked successfully", sessionId: result.insertId });
   } catch (err) {
     await conn.rollback();
     console.error("Book session error:", err);
@@ -84,22 +95,30 @@ const bookSession = async (req, res) => {
   }
 };
 
-// GET my sessions (as mentor or learner)
+// GET sessions where the logged-in user is mentor OR learner.
 const getMySessions = async (req, res) => {
   try {
     const user_id = req.user.id;
 
     const [sessions] = await pool.query(
-      `SELECT ses.*, s.skill_name,
-              mentor.name as mentor_name, learner.name as learner_name,
-              ts.start_time, ts.end_time
+      `SELECT
+         ses.id,
+         ses.mentor_id,
+         ses.learner_id,
+         ses.skill_id,
+         ses.start_time,
+         ses.end_time,
+         ses.status,
+         ses.created_at,
+         s.skill_name,
+         mentor.name  AS mentor_name,
+         learner.name AS learner_name
        FROM sessions ses
-       JOIN skills s ON ses.skill_id = s.id
-       JOIN users mentor ON ses.mentor_id = mentor.id
-       JOIN users learner ON ses.learner_id = learner.id
-       JOIN time_slots ts ON ses.slot_id = ts.id
+       JOIN skills s      ON s.id      = ses.skill_id
+       JOIN users mentor  ON mentor.id  = ses.mentor_id
+       JOIN users learner ON learner.id = ses.learner_id
        WHERE ses.mentor_id = ? OR ses.learner_id = ?
-       ORDER BY ts.start_time DESC`,
+       ORDER BY ses.start_time DESC`,
       [user_id, user_id]
     );
 
@@ -110,7 +129,8 @@ const getMySessions = async (req, res) => {
   }
 };
 
-// UPDATE session status (complete or cancel)
+// UPDATE a session's status (complete or cancel).
+// Only the mentor or the learner of that session may update it.
 const updateSessionStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,7 +141,6 @@ const updateSessionStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    // Only mentor or learner of this session can update it
     const [sessions] = await pool.query(
       "SELECT * FROM sessions WHERE id = ? AND (mentor_id = ? OR learner_id = ?)",
       [id, user_id, user_id]

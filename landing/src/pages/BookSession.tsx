@@ -13,6 +13,25 @@ import type { Slot, UserProfile } from "@/lib/types";
 
 const SESSION_COST = 10;
 
+function formatSlotLabel(slot: Slot) {
+  const start = new Date(slot.start_time);
+  const end = new Date(slot.end_time);
+  const dateStr = start.toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const startTime = start.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endTime = end.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${slot.skill_name} · ${dateStr} ${startTime} – ${endTime}`;
+}
+
 export default function BookSession() {
   const { mentorId } = useParams<{ mentorId: string }>();
   const { user, refreshUser } = useAuth();
@@ -21,7 +40,6 @@ export default function BookSession() {
   const [mentorProfile, setMentorProfile] = useState<UserProfile | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState("");
-  const [selectedSkill, setSelectedSkill] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,26 +56,14 @@ export default function BookSession() {
   }, [mentorId]);
 
   const handleBook = async () => {
-    if (!selectedSkill && !selectedSlot) {
-      setError("Please select a skill and a time slot to continue.");
-      return;
-    }
-    if (!selectedSkill) {
-      setError("Please select a skill to learn.");
-      return;
-    }
     if (!selectedSlot) {
-      setError("Please select a time slot.");
+      setError("Please pick a time slot.");
       return;
     }
     setError("");
     setSubmitting(true);
     try {
-      await api.post("/sessions/book", {
-        mentor_id: Number(mentorId),
-        skill_id: Number(selectedSkill),
-        slot_id: Number(selectedSlot),
-      });
+      await api.post("/sessions/book", { slot_id: Number(selectedSlot) });
       await refreshUser();
       navigate("/my-sessions");
     } catch (err) {
@@ -79,6 +85,8 @@ export default function BookSession() {
   }
 
   const insufficientCredits = (user?.credits ?? 0) < SESSION_COST;
+
+  const selected = slots.find((s) => s.id === Number(selectedSlot));
 
   return (
     <AppShell>
@@ -116,29 +124,10 @@ export default function BookSession() {
           {error && <Alert variant="error">{error}</Alert>}
 
           <div>
-            <Label htmlFor="skill">Select Skill</Label>
-            <Select
-              id="skill"
-              value={selectedSkill}
-              onChange={(e) => {
-                setSelectedSkill(e.target.value);
-                if (e.target.value) setError("");
-              }}
-            >
-              <option value="">Choose a skill to learn</option>
-              {mentorProfile.offeredSkills.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.skill_name} ({s.category})
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="slot">Select Time Slot</Label>
+            <Label htmlFor="slot">Pick a skill & time</Label>
             {slots.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No available slots for this mentor.
+                This mentor hasn't opened any slots yet.
               </p>
             ) : (
               <Select
@@ -149,16 +138,31 @@ export default function BookSession() {
                   if (e.target.value) setError("");
                 }}
               >
-                <option value="">Choose a time slot</option>
+                <option value="">Choose a slot</option>
                 {slots.map((slot) => (
                   <option key={slot.id} value={slot.id}>
-                    {new Date(slot.start_time).toLocaleString()} —{" "}
-                    {new Date(slot.end_time).toLocaleTimeString()}
+                    {formatSlotLabel(slot)}
                   </option>
                 ))}
               </Select>
             )}
           </div>
+
+          {selected && (
+            <div className="rounded-lg border border-border/50 bg-card/40 px-4 py-3 text-sm">
+              <p className="text-foreground">
+                Booking{" "}
+                <span className="font-medium">{selected.skill_name}</span>{" "}
+                <span className="text-muted-foreground">
+                  · {selected.category}
+                </span>
+              </p>
+              <p className="text-muted-foreground text-xs mt-1">
+                {new Date(selected.start_time).toLocaleString()} —{" "}
+                {new Date(selected.end_time).toLocaleTimeString()}
+              </p>
+            </div>
+          )}
 
           {insufficientCredits && (
             <p className="text-sm text-muted-foreground">
@@ -169,7 +173,7 @@ export default function BookSession() {
           <Button
             size="lg"
             onClick={handleBook}
-            disabled={submitting || insufficientCredits}
+            disabled={submitting || insufficientCredits || slots.length === 0}
             className="w-full"
           >
             <Calendar className="w-4 h-4" />

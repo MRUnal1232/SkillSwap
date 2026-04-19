@@ -1,43 +1,59 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { io, type Socket } from "socket.io-client";
 import { Send, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
-import { api, API_BASE } from "@/lib/api";
+import { useChatSocket } from "@/context/ChatSocketContext";
+import { api } from "@/lib/api";
 import type { ChatContact, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function Chat() {
   const { user } = useAuth();
+  const {
+    sendMessage,
+    subscribe,
+    unreadCounts,
+    setActiveContactId,
+  } = useChatSocket();
+
   const [contacts, setContacts] = useState<ChatContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<ChatContact | null>(
     null
   );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!user) return;
-    const socket = io(API_BASE, { withCredentials: true });
-    socketRef.current = socket;
-    socket.emit("join", user.id);
-    socket.on("receiveMessage", (msg: ChatMessage) => {
-      setMessages((prev) => [...prev, msg]);
-    });
-
     api
       .get<ChatContact[]>("/chat/contacts")
       .then((res) => setContacts(res.data))
       .catch(() => {});
+  }, []);
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [user]);
+  // Stream new messages into the currently open thread (and only that one).
+  useEffect(() => {
+    if (!selectedContact || !user) return;
+    const off = subscribe((msg) => {
+      const belongsToThread =
+        (msg.sender_id === selectedContact.contact_id &&
+          msg.receiver_id === user.id) ||
+        (msg.sender_id === user.id &&
+          msg.receiver_id === selectedContact.contact_id);
+      if (belongsToThread) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    });
+    return off;
+  }, [selectedContact, user, subscribe]);
+
+  // Tell the socket context which contact is open so toasts are suppressed.
+  useEffect(() => {
+    setActiveContactId(selectedContact?.contact_id ?? null);
+    return () => setActiveContactId(null);
+  }, [selectedContact, setActiveContactId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -55,19 +71,17 @@ export default function Chat() {
     }
   };
 
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedContact || !user || !socketRef.current)
-      return;
-    socketRef.current.emit("sendMessage", {
-      sender_id: user.id,
+  const handleSend = () => {
+    if (!newMessage.trim() || !selectedContact) return;
+    sendMessage({
       receiver_id: selectedContact.contact_id,
-      message: newMessage,
+      message: newMessage.trim(),
     });
     setNewMessage("");
   };
 
   const onKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") sendMessage();
+    if (e.key === "Enter") handleSend();
   };
 
   return (
@@ -92,6 +106,7 @@ export default function Chat() {
             ) : (
               contacts.map((c) => {
                 const active = selectedContact?.contact_id === c.contact_id;
+                const unread = unreadCounts[c.contact_id] ?? 0;
                 return (
                   <button
                     key={c.contact_id}
@@ -103,10 +118,17 @@ export default function Chat() {
                         : "text-muted-foreground hover:text-foreground hover:bg-white/[0.02]"
                     )}
                   >
-                    <div className="w-9 h-9 rounded-full bg-secondary/80 border border-border/60 flex items-center justify-center text-sm font-medium text-foreground shrink-0">
-                      {c.contact_name.charAt(0).toUpperCase()}
+                    <div className="relative shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-secondary/80 border border-border/60 flex items-center justify-center text-sm font-medium text-foreground">
+                        {c.contact_name.charAt(0).toUpperCase()}
+                      </div>
+                      {unread > 0 && !active && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-foreground text-background text-[10px] font-bold flex items-center justify-center leading-none">
+                          {unread > 9 ? "9+" : unread}
+                        </span>
+                      )}
                     </div>
-                    <span className="truncate">{c.contact_name}</span>
+                    <span className="truncate flex-1">{c.contact_name}</span>
                   </button>
                 );
               })
@@ -172,7 +194,7 @@ export default function Chat() {
                   onKeyDown={onKeyPress}
                   className="flex-1"
                 />
-                <Button onClick={sendMessage} size="md">
+                <Button onClick={handleSend} size="md">
                   <Send className="w-4 h-4" />
                 </Button>
               </div>

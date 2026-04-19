@@ -2,9 +2,7 @@ import { useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { fadeUp } from "@/lib/utils";
-
-const HERO_VIDEO =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260325_120549_0cd82c36-56b3-4dd9-b190-069cfc3a623f.mp4";
+import { HeroBackground } from "./HeroBackground";
 
 const avatars = [
   "https://api.dicebear.com/7.x/notionists/svg?seed=Alex&backgroundColor=1a1a1a",
@@ -24,15 +22,7 @@ export function Hero() {
 
   return (
     <section className="relative min-h-screen w-full overflow-hidden">
-      <video
-        className="absolute inset-0 w-full h-full object-cover z-0"
-        src={HERO_VIDEO}
-        autoPlay
-        loop
-        muted
-        playsInline
-      />
-      <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-background to-transparent z-[1]" />
+      <HeroBackground />
 
       <div className="relative z-10 flex flex-col items-center text-center px-6 pt-28 md:pt-32 pb-32">
         <motion.div

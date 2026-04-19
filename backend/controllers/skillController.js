@@ -15,7 +15,7 @@ const getAllSkills = async (req, res) => {
 // This query joins users -> user_skills -> skills to find mentors for a skill
 const searchMentors = async (req, res) => {
   try {
-    const { skill, category, min_rating } = req.query;
+    const { skill, category, min_rating, availability } = req.query;
 
     let query = `
       SELECT u.id, u.name, u.email, s.skill_name, s.category,
@@ -37,6 +37,20 @@ const searchMentors = async (req, res) => {
     if (category) {
       query += " AND s.category = ?";
       params.push(category);
+    }
+
+    // Availability filter — only keep mentor+skill combos that have at
+    // least one open, unbooked, future slot for that exact skill.
+    if (availability === "available") {
+      query += `
+        AND EXISTS (
+          SELECT 1 FROM time_slots ts
+          WHERE ts.user_id = u.id
+            AND ts.skill_id = s.id
+            AND ts.is_booked = FALSE
+            AND ts.start_time > NOW()
+        )
+      `;
     }
 
     query += " GROUP BY u.id, u.name, u.email, s.skill_name, s.category";

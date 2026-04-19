@@ -16,6 +16,7 @@ export default function Marketplace() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [minRating, setMinRating] = useState("");
+  const [availability, setAvailability] = useState("");
 
   useEffect(() => {
     api.get<Skill[]>("/skills").then((res) => setSkills(res.data)).catch(() => {});
@@ -28,6 +29,7 @@ export default function Marketplace() {
         if (search) params.skill = search;
         if (category) params.category = category;
         if (minRating) params.min_rating = minRating;
+        if (availability) params.availability = availability;
         const res = await api.get<Mentor[]>("/skills/mentors", { params });
         setMentors(res.data);
       } catch {
@@ -35,7 +37,7 @@ export default function Marketplace() {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [search, category, minRating]);
+  }, [search, category, minRating, availability]);
 
   const categories = useMemo(
     () => Array.from(new Set(skills.map((s) => s.category))),
@@ -83,6 +85,14 @@ export default function Marketplace() {
           <option value="4">4+ Stars</option>
           <option value="5">5 Stars</option>
         </Select>
+        <Select
+          value={availability}
+          onChange={(e) => setAvailability(e.target.value)}
+          className="md:max-w-[200px] bg-transparent border-transparent focus:border-border/60"
+        >
+          <option value="">Any Availability</option>
+          <option value="available">Available Now</option>
+        </Select>
       </div>
 
       {mentors.length === 0 ? (
@@ -101,26 +111,21 @@ export default function Marketplace() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: Math.min(i * 0.03, 0.3) }}
-                className="group relative liquid-glass rounded-2xl p-6 flex flex-col gap-5 hover:bg-white/[0.02] transition-colors"
+                whileHover={{ y: -3 }}
+                className="group relative liquid-glass rounded-2xl p-6 flex flex-col hover:bg-white/[0.02] transition-colors"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-secondary/80 border border-border/60 flex items-center justify-center font-semibold text-base">
-                      {mentor.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-base leading-tight">
-                        {mentor.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {mentor.category}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge tone="outline">{mentor.skill_name}</Badge>
-                </div>
+                {/* Category pill at the top */}
+                <Badge tone="outline" className="self-start mb-5">
+                  {mentor.category}
+                </Badge>
 
-                <div className="flex items-center gap-2 text-sm">
+                {/* Skill — the hero of the card */}
+                <h3 className="text-2xl md:text-[28px] font-medium tracking-[-0.5px] leading-tight text-foreground">
+                  {mentor.skill_name}
+                </h3>
+
+                {/* Rating */}
+                <div className="flex items-center gap-2 text-sm mt-3">
                   {rating ? (
                     <>
                       <Star
@@ -140,7 +145,26 @@ export default function Marketplace() {
                   )}
                 </div>
 
-                <div className="flex gap-2 mt-auto pt-1">
+                {/* Divider */}
+                <div className="h-px bg-border/40 my-5" />
+
+                {/* Mentor attribution */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-full bg-secondary/80 border border-border/60 flex items-center justify-center font-semibold text-sm text-foreground shrink-0">
+                    {mentor.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-[2px] text-muted-foreground">
+                      Taught by
+                    </p>
+                    <p className="text-sm font-medium truncate">
+                      {mentor.name}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions pinned to the bottom */}
+                <div className="flex gap-2 mt-auto">
                   <Link to={`/profile/${mentor.id}`} className="flex-1">
                     <Button variant="outline" size="sm" className="w-full">
                       View Profile
