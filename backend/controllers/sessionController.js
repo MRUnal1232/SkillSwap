@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { sendBookingEmails } = require("../utils/mailer");
 
 const CREDIT_COST = 10; // credits per session
 
@@ -83,6 +84,40 @@ const bookSession = async (req, res) => {
     );
 
     await conn.commit();
+
+    // Fire-and-forget: send confirmation emails to both parties.
+    // Intentionally not awaited — a slow/failed mailer must never delay or
+    // break the booking response.
+    (async () => {
+      try {
+        const [rows] = await pool.query(
+          `SELECT
+             mentor.name  AS mentor_name,  mentor.email  AS mentor_email,
+             learner.name AS learner_name, learner.email AS learner_email,
+             sk.skill_name
+           FROM sessions ses
+           JOIN users  mentor  ON mentor.id  = ses.mentor_id
+           JOIN users  learner ON learner.id = ses.learner_id
+           JOIN skills sk      ON sk.id      = ses.skill_id
+           WHERE ses.id = ?`,
+          [result.insertId]
+        );
+        if (rows.length === 0) return;
+        const r = rows[0];
+        sendBookingEmails({
+          mentor:  { name: r.mentor_name,  email: r.mentor_email },
+          learner: { name: r.learner_name, email: r.learner_email },
+          skill_name: r.skill_name,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          credits: CREDIT_COST,
+          session_id: result.insertId,
+        });
+      } catch (mailErr) {
+        console.error("Booking email fetch/send failed:", mailErr.message);
+      }
+    })();
+
     res
       .status(201)
       .json({ message: "Session booked successfully", sessionId: result.insertId });

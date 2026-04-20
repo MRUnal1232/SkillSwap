@@ -79,11 +79,20 @@ const addUserSkill = async (req, res) => {
   }
 };
 
-// REMOVE a skill from user profile
+// REMOVE a skill from user profile.
+// Uses query params so we don't send a body on DELETE (some CORS/proxy
+// stacks drop DELETE bodies, which made this endpoint silently no-op).
 const removeUserSkill = async (req, res) => {
   try {
-    const { skill_id, type } = req.body;
+    const skill_id = req.query.skill_id ?? req.body?.skill_id;
+    const type = req.query.type ?? req.body?.type;
     const user_id = req.user.id;
+
+    if (!skill_id || !["offer", "learn"].includes(type)) {
+      return res
+        .status(400)
+        .json({ message: "skill_id and type ('offer' or 'learn') are required" });
+    }
 
     await pool.query(
       "DELETE FROM user_skills WHERE user_id = ? AND skill_id = ? AND type = ?",
