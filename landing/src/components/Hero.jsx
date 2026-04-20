@@ -70,7 +70,7 @@ export function Hero() {
           className="mt-10 flex flex-col sm:flex-row items-center gap-3"
         >
           {user ? (
-            <Link to="/marketplace">
+            <Link to="/dashboard">
               <motion.span
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}

@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 
 const appLinks = [
+  { to: "/dashboard", label: "Dashboard" },
   { to: "/marketplace", label: "Marketplace" },
   { to: "/my-sessions", label: "Sessions" },
   { to: "/my-slots", label: "Slots" },
@@ -27,7 +28,7 @@ export function AppNavbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/70 border-b border-border/40">
       <div className="px-6 md:px-12 lg:px-20 py-4 flex items-center justify-between">
-        <Link to="/marketplace" className="flex items-center gap-2.5">
+        <Link to="/dashboard" className="flex items-center gap-2.5">
           <Logo />
           <span className="font-bold text-lg tracking-tight">SkillSwap</span>
         </Link>

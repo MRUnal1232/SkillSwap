@@ -22,7 +22,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate("/marketplace");
+      navigate("/dashboard");
     } catch (err) {
       const msg = axios.isAxiosError(err)
         ? err.response?.data?.message ?? "Login failed"

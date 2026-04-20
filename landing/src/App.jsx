@@ -6,6 +6,7 @@ import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
+import Dashboard from "@/pages/Dashboard";
 import Marketplace from "@/pages/Marketplace";
 import Profile from "@/pages/Profile";
 import BookSession from "@/pages/BookSession";
@@ -34,7 +35,7 @@ function ProtectedRoute({ children }) {
 function RedirectIfAuthed({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (user) return <Navigate to="/marketplace" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -64,6 +65,14 @@ export default function App() {
             />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/marketplace"
               element={
