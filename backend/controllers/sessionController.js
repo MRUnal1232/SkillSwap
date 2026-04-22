@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { sendBookingEmails } = require("../utils/mailer");
+const { buildIcs } = require("../utils/ics");
 
 const CREDIT_COST = 10; // credits per session
 
@@ -193,4 +194,62 @@ const updateSessionStatus = async (req, res) => {
   }
 };
 
-module.exports = { bookSession, getMySessions, updateSessionStatus };
+// GET /api/sessions/:id/calendar.ics
+// Download the session as a calendar event. Only the mentor or learner
+// on the session may download it.
+const getSessionIcs = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user_id = req.user.id;
+
+    const [rows] = await pool.query(
+      `SELECT ses.id, ses.start_time, ses.end_time, ses.status,
+              ses.mentor_id, ses.learner_id,
+              sk.skill_name,
+              mentor.name  AS mentor_name,
+              learner.name AS learner_name
+         FROM sessions ses
+         JOIN skills sk     ON sk.id     = ses.skill_id
+         JOIN users mentor  ON mentor.id  = ses.mentor_id
+         JOIN users learner ON learner.id = ses.learner_id
+        WHERE ses.id = ? AND (ses.mentor_id = ? OR ses.learner_id = ?)
+        LIMIT 1`,
+      [id, user_id, user_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    const s = rows[0];
+
+    const iAmMentor = s.mentor_id === user_id;
+    const otherParty = iAmMentor ? s.learner_name : s.mentor_name;
+    const role = iAmMentor ? "Teaching" : "Learning";
+
+    const ics = buildIcs({
+      uid: `session-${s.id}@skillswap`,
+      start: s.start_time,
+      end: s.end_time,
+      summary: `${role} ${s.skill_name} with ${otherParty}`,
+      description: `SkillSwap session — ${role.toLowerCase()} ${s.skill_name} with ${otherParty}. Status: ${s.status}.`,
+      location: "SkillSwap (online)",
+    });
+
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="skillswap-session-${s.id}.ics"`
+    );
+    res.send(ics);
+  } catch (err) {
+    console.error("Get session ics error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = {
+  bookSession,
+  getMySessions,
+  updateSessionStatus,
+  getSessionIcs,
+};

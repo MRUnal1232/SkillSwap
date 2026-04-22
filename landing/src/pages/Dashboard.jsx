@@ -12,6 +12,7 @@ import {
   Clock,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { CalendarMenu } from "@/components/CalendarMenu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
@@ -220,6 +221,7 @@ export default function Dashboard() {
                       minute: "2-digit",
                     })}
                   </div>
+                  <CalendarMenu session={s} iAmMentor={isMentor} />
                 </div>
               );
             })}

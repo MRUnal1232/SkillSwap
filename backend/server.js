@@ -23,6 +23,7 @@ app.use("/api/slots", require("./routes/slotRoutes"));
 app.use("/api/sessions", require("./routes/sessionRoutes"));
 app.use("/api/reviews", require("./routes/reviewRoutes"));
 app.use("/api/chat", require("./routes/chatRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 // Socket.io setup
 const { initSocket } = require("./socket/chat");

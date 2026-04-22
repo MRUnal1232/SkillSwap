@@ -163,7 +163,10 @@ export default function Marketplace() {
                       View Profile
                     </Button>
                   </Link>
-                  <Link to={`/book/${mentor.id}`} className="flex-1">
+                  <Link
+                    to={`/book/${mentor.id}?skill=${mentor.skill_id}`}
+                    className="flex-1"
+                  >
                     <Button size="sm" className="w-full">
                       Book <ArrowRight className="w-3.5 h-3.5" />
                     </Button>

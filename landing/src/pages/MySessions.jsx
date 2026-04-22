@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Check, X, Star, GraduationCap, BookOpen } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { CalendarMenu } from "@/components/CalendarMenu";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
@@ -191,6 +192,7 @@ function SessionSection({
   rows,
   otherPartyLabel,
   getOtherPartyName,
+  currentUserIsLearner,
   onComplete,
   onCancel,
   onReview,
@@ -249,9 +251,13 @@ function SessionSection({
                     </Badge>
                   </Td>
                   <Td className="text-right">
-                    <div className="inline-flex gap-2 justify-end">
+                    <div className="inline-flex gap-2 justify-end flex-wrap">
                       {s.status === "booked" && (
                         <>
+                          <CalendarMenu
+                            session={s}
+                            iAmMentor={!currentUserIsLearner}
+                          />
                           <Button
                             variant="outline"
                             size="sm"

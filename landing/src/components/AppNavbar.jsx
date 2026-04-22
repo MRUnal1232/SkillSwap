@@ -6,7 +6,7 @@ import { useChatSocket } from "@/context/ChatSocketContext";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 
-const appLinks = [
+const baseLinks = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/marketplace", label: "Marketplace" },
   { to: "/my-sessions", label: "Sessions" },
@@ -19,6 +19,10 @@ export function AppNavbar() {
   const { totalUnread } = useChatSocket();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  const appLinks = user?.is_admin
+    ? [...baseLinks, { to: "/admin", label: "Admin" }]
+    : baseLinks;
 
   const handleLogout = async () => {
     await logout();

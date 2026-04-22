@@ -7,6 +7,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Dashboard from "@/pages/Dashboard";
+import Admin from "@/pages/Admin";
 import Marketplace from "@/pages/Marketplace";
 import Profile from "@/pages/Profile";
 import BookSession from "@/pages/BookSession";
@@ -36,6 +37,14 @@ function RedirectIfAuthed({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (user) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!user.is_admin) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -71,6 +80,14 @@ export default function App() {
                 <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <Admin />
+                </AdminRoute>
               }
             />
             <Route

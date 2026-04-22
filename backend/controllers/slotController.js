@@ -42,9 +42,21 @@ const createSlot = async (req, res) => {
 };
 
 // GET bookable slots for a specific mentor (joined with skill info).
+// Optional ?skill_id=X narrows to slots for that specific skill.
 const getMentorSlots = async (req, res) => {
   try {
     const { mentor_id } = req.params;
+    const { skill_id } = req.query;
+
+    const params = [mentor_id];
+    let where = `ts.user_id = ?
+        AND ts.is_booked = FALSE
+        AND ts.start_time > NOW()`;
+
+    if (skill_id) {
+      where += " AND ts.skill_id = ?";
+      params.push(skill_id);
+    }
 
     const [slots] = await pool.query(
       `SELECT ts.id, ts.user_id, ts.skill_id,
@@ -52,11 +64,9 @@ const getMentorSlots = async (req, res) => {
               s.skill_name, s.category
          FROM time_slots ts
          JOIN skills s ON s.id = ts.skill_id
-        WHERE ts.user_id = ?
-          AND ts.is_booked = FALSE
-          AND ts.start_time > NOW()
+        WHERE ${where}
         ORDER BY ts.start_time`,
-      [mentor_id]
+      params
     );
 
     res.json(slots);

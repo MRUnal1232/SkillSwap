@@ -68,7 +68,13 @@ const login = async (req, res) => {
 
     res.json({
       message: "Login successful",
-      user: { id: user.id, name: user.name, email: user.email, credits: user.credits },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        credits: user.credits,
+        is_admin: !!user.is_admin,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -86,13 +92,14 @@ const logout = (req, res) => {
 const getMe = async (req, res) => {
   try {
     const [users] = await pool.query(
-      "SELECT id, name, email, credits, created_at FROM users WHERE id = ?",
+      "SELECT id, name, email, credits, is_admin, created_at FROM users WHERE id = ?",
       [req.user.id]
     );
     if (users.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.json(users[0]);
+    const u = users[0];
+    res.json({ ...u, is_admin: !!u.is_admin });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Calendar, CreditCard } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -33,6 +33,8 @@ function formatSlotLabel(slot) {
 
 export default function BookSession() {
   const { mentorId } = useParams();
+  const [searchParams] = useSearchParams();
+  const skillFilter = searchParams.get("skill");
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
@@ -49,10 +51,20 @@ export default function BookSession() {
       .then((r) => setMentorProfile(r.data))
       .catch(() => {});
     api
-      .get(`/slots/mentor/${mentorId}`)
+      .get(`/slots/mentor/${mentorId}`, {
+        params: skillFilter ? { skill_id: skillFilter } : {},
+      })
       .then((r) => setSlots(r.data))
       .catch(() => {});
-  }, [mentorId]);
+  }, [mentorId, skillFilter]);
+
+  // Derive the chosen skill name for the header (looked up on mentor profile).
+  const chosenSkill = useMemo(() => {
+    if (!skillFilter || !mentorProfile) return null;
+    return mentorProfile.offeredSkills?.find(
+      (s) => String(s.id) === String(skillFilter)
+    );
+  }, [skillFilter, mentorProfile]);
 
   const handleBook = async () => {
     if (!selectedSlot) {
@@ -92,7 +104,7 @@ export default function BookSession() {
       <div className="max-w-2xl mx-auto">
         <header className="text-center mb-12">
           <p className="text-xs uppercase tracking-[3px] text-muted-foreground mb-4">
-            Book a Session
+            {chosenSkill ? `Book a ${chosenSkill.skill_name} Session` : "Book a Session"}
           </p>
           <h1 className="text-4xl md:text-5xl font-medium tracking-[-1px]">
             with{" "}
@@ -100,6 +112,16 @@ export default function BookSession() {
               {mentorProfile.name}
             </span>
           </h1>
+          {chosenSkill && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Showing only slots for{" "}
+              <span className="text-foreground font-medium">
+                {chosenSkill.skill_name}
+              </span>
+              {" · "}
+              {chosenSkill.category}
+            </p>
+          )}
         </header>
 
         <div className="grid grid-cols-3 gap-3 mb-10">
@@ -126,7 +148,9 @@ export default function BookSession() {
             <Label htmlFor="slot">Pick a skill & time</Label>
             {slots.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                This mentor hasn't opened any slots yet.
+                {chosenSkill
+                  ? `No open ${chosenSkill.skill_name} slots right now. Check back later.`
+                  : "This mentor hasn't opened any slots yet."}
               </p>
             ) : (
               <Select

@@ -18,7 +18,8 @@ const searchMentors = async (req, res) => {
     const { skill, category, min_rating, availability } = req.query;
 
     let query = `
-      SELECT u.id, u.name, u.email, s.skill_name, s.category,
+      SELECT u.id, u.name, u.email,
+             s.id AS skill_id, s.skill_name, s.category,
              AVG(r.rating) as avg_rating, COUNT(r.id) as total_reviews
       FROM users u
       JOIN user_skills us ON u.id = us.user_id
@@ -53,7 +54,7 @@ const searchMentors = async (req, res) => {
       `;
     }
 
-    query += " GROUP BY u.id, u.name, u.email, s.skill_name, s.category";
+    query += " GROUP BY u.id, u.name, u.email, s.id, s.skill_name, s.category";
 
     if (min_rating) {
       query += " HAVING avg_rating >= ?";
