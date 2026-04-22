@@ -1,5 +1,5 @@
 const pool = require("../config/db");
-const { sendBookingEmails } = require("../utils/mailer");
+const { sendBookingEmails } = require("../utils/mail");
 const { buildIcs } = require("../utils/ics");
 
 const CREDIT_COST = 10; // credits per session

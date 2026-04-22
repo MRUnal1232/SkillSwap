@@ -1,79 +1,71 @@
+// =============================================================================
+// SkillSwap — Email notifications (Gmail SMTP)
+// =============================================================================
+// Reads SMTP_USER + SMTP_PASS from .env and sends real mail through Gmail.
+// The SMTP_PASS must be a 16-character Google App Password (spaces are fine;
+// they're stripped below).
+//
+// sendBookingEmails({ mentor, learner, skill_name, start_time, end_time,
+//                     credits, session_id })
+// sends two HTML emails — one to the learner (confirmation) and one to
+// the mentor (new booking). Runs fire-and-forget from the booking API so a
+// mail outage never blocks the user's response.
+// =============================================================================
+
 const nodemailer = require("nodemailer");
 
 // ---------------------------------------------------------------------------
-// Transport setup
+// Transporter (lazy singleton, built on first send)
 // ---------------------------------------------------------------------------
-// If SMTP_HOST / SMTP_USER / SMTP_PASS are set in .env, real mail goes out.
-// Otherwise we fall back to an Ethereal.email test account — a fake SMTP
-// service that accepts emails and gives you a preview URL (logged to stdout).
-// This lets you develop / demo without Gmail app passwords or SendGrid keys.
-// ---------------------------------------------------------------------------
+let transporter = null;
 
-let transporterPromise = null;
-let fromAddressPromise = null;
+function getTransporter() {
+  if (transporter) return transporter;
 
-function buildTransporter() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM } = process.env;
+  const user = process.env.SMTP_USER;
+  // Google shows app passwords with spaces for readability; strip them.
+  const pass = (process.env.SMTP_PASS || "").replace(/\s+/g, "");
+  const host = process.env.SMTP_HOST || "smtp.gmail.com";
+  const port = Number(process.env.SMTP_PORT) || 587;
 
-  if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    fromAddressPromise = Promise.resolve(
-      EMAIL_FROM || `SkillSwap <${SMTP_USER}>`
-    );
-    return Promise.resolve(
-      nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: Number(SMTP_PORT) || 587,
-        secure: (Number(SMTP_PORT) || 587) === 465,
-        auth: { user: SMTP_USER, pass: SMTP_PASS },
-      })
+  if (!user || !pass) {
+    throw new Error(
+      "[mail] SMTP_USER and SMTP_PASS must be set in .env (Gmail app password)."
     );
   }
 
-  // Dev fallback: Ethereal test account (no real delivery, preview URL only)
-  return nodemailer.createTestAccount().then((testAccount) => {
-    console.log(
-      `[mailer] No SMTP credentials found — using Ethereal test account ${testAccount.user}`
-    );
-    fromAddressPromise = Promise.resolve(
-      `SkillSwap (dev) <${testAccount.user}>`
-    );
-    return nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: { user: testAccount.user, pass: testAccount.pass },
-    });
+  transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465, // true for 465, false for 587 (STARTTLS)
+    auth: { user, pass },
   });
+
+  return transporter;
 }
 
-function getTransporter() {
-  if (!transporterPromise) transporterPromise = buildTransporter();
-  return transporterPromise;
+function getFromAddress() {
+  return process.env.EMAIL_FROM || `SkillSwap <${process.env.SMTP_USER}>`;
 }
 
 async function sendMail({ to, subject, html, text }) {
   try {
-    const transporter = await getTransporter();
-    const from = await fromAddressPromise;
-    const info = await transporter.sendMail({
-      from,
+    const info = await getTransporter().sendMail({
+      from: getFromAddress(),
       to,
       subject,
       text,
       html,
     });
-    const preview = nodemailer.getTestMessageUrl?.(info);
-    if (preview) {
-      console.log(`[mailer] preview → ${preview}`);
-    }
+    console.log(`[mail] sent → ${to} (id: ${info.messageId})`);
     return info;
   } catch (err) {
-    console.error("[mailer] send failed:", err.message);
+    console.error(`[mail] send to ${to} failed:`, err.message);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Booking email templates
+// Booking email template helpers
 // ---------------------------------------------------------------------------
 
 function formatWhen(start, end) {
@@ -111,7 +103,14 @@ function baseWrap(title, body) {
 </html>`;
 }
 
-function detailRows({ skill, when, other_label, other_name, credits_label, credits }) {
+function detailRows({
+  skill,
+  when,
+  other_label,
+  other_name,
+  credits_label,
+  credits,
+}) {
   return `
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border:1px solid #262626;border-radius:12px;">
       <tr><td style="padding:14px 18px;color:#888;font-size:12px;letter-spacing:2px;text-transform:uppercase;">Skill</td><td style="padding:14px 18px;text-align:right;color:#f5f5f5;">${skill}</td></tr>
@@ -123,7 +122,8 @@ function detailRows({ skill, when, other_label, other_name, credits_label, credi
 
 /**
  * Send both confirmation emails for a newly-booked session.
- * Fails silently (logs) so a bad mail transport never breaks the booking API.
+ * Never throws — errors are logged so a bad mail transport never breaks
+ * the booking API.
  */
 async function sendBookingEmails({
   mentor,    // { name, email }
