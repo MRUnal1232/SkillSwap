@@ -1,6 +1,11 @@
 const pool = require("../config/db");
 const { sendBookingEmails } = require("../utils/mail");
 const { buildIcs } = require("../utils/ics");
+const { buildMeetingUrl } = require("../utils/meeting");
+
+// Video meeting window rules
+const JOIN_OPENS_MS = 10 * 60 * 1000;  // can join starting 10 min before
+const JOIN_GRACE_MS = 30 * 60 * 1000;  // window stays open 30 min after end
 
 const CREDIT_COST = 10; // credits per session
 
@@ -247,9 +252,77 @@ const getSessionIcs = async (req, res) => {
   }
 };
 
+// GET /api/sessions/:id/meeting
+// Return the Jitsi meeting URL + time-window info for a session. Only the
+// mentor or learner on the session can call this.
+const getMeetingInfo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user_id = req.user.id;
+
+    const [rows] = await pool.query(
+      `SELECT ses.id, ses.status, ses.start_time, ses.end_time,
+              ses.mentor_id, ses.learner_id,
+              sk.skill_name,
+              mentor.name  AS mentor_name,
+              learner.name AS learner_name,
+              me.name      AS my_name
+         FROM sessions ses
+         JOIN skills sk     ON sk.id     = ses.skill_id
+         JOIN users mentor  ON mentor.id  = ses.mentor_id
+         JOIN users learner ON learner.id = ses.learner_id
+         JOIN users me      ON me.id      = ?
+        WHERE ses.id = ? AND (ses.mentor_id = ? OR ses.learner_id = ?)
+        LIMIT 1`,
+      [user_id, id, user_id, user_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    const s = rows[0];
+
+    const now = Date.now();
+    const startTs = new Date(s.start_time).getTime();
+    const endTs = new Date(s.end_time).getTime();
+
+    const startsInSeconds = Math.round((startTs - now) / 1000);
+    const endsInSeconds = Math.round((endTs - now) / 1000);
+
+    const canJoin =
+      s.status === "booked" &&
+      now >= startTs - JOIN_OPENS_MS &&
+      now <= endTs + JOIN_GRACE_MS;
+
+    const iAmMentor = s.mentor_id === user_id;
+
+    res.json({
+      session_id: s.id,
+      status: s.status,
+      skill_name: s.skill_name,
+      i_am_mentor: iAmMentor,
+      other_party_name: iAmMentor ? s.learner_name : s.mentor_name,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      starts_in_seconds: startsInSeconds,
+      ends_in_seconds: endsInSeconds,
+      window_opens_at: new Date(startTs - JOIN_OPENS_MS).toISOString(),
+      window_closes_at: new Date(endTs + JOIN_GRACE_MS).toISOString(),
+      can_join: canJoin,
+      meeting_url: canJoin
+        ? buildMeetingUrl(s.id, { displayName: s.my_name })
+        : null,
+    });
+  } catch (err) {
+    console.error("Get meeting info error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   bookSession,
   getMySessions,
   updateSessionStatus,
   getSessionIcs,
+  getMeetingInfo,
 };

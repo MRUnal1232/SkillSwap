@@ -3,6 +3,7 @@ import axios from "axios";
 import { Check, X, Star, GraduationCap, BookOpen } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CalendarMenu } from "@/components/CalendarMenu";
+import { JoinMeetingButton } from "@/components/JoinMeetingButton";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
@@ -254,6 +255,7 @@ function SessionSection({
                     <div className="inline-flex gap-2 justify-end flex-wrap">
                       {s.status === "booked" && (
                         <>
+                          <JoinMeetingButton session={s} />
                           <CalendarMenu
                             session={s}
                             iAmMentor={!currentUserIsLearner}

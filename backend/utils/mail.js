@@ -103,6 +103,25 @@ function baseWrap(title, body) {
 </html>`;
 }
 
+function joinButton(meetingUrl) {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+      <tr>
+        <td align="center">
+          <a href="${meetingUrl}"
+             style="display:inline-block;background:#ffffff;color:#0b0b0b;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:600;font-size:14px;letter-spacing:0.3px;">
+            🎥 Join video meeting
+          </a>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" style="padding-top:10px;color:#888;font-size:11px;">
+          Opens 10 minutes before the session starts
+        </td>
+      </tr>
+    </table>`;
+}
+
 function detailRows({
   skill,
   when,
@@ -135,6 +154,11 @@ async function sendBookingEmails({
   session_id,
 }) {
   const when = formatWhen(start_time, end_time);
+  const appUrl = (process.env.APP_URL || "http://localhost:5173").replace(
+    /\/+$/,
+    ""
+  );
+  const meetingUrl = `${appUrl}/meeting/${session_id}`;
 
   // -> Learner
   const learnerBody = `
@@ -147,6 +171,7 @@ async function sendBookingEmails({
       credits_label: "You spent",
       credits,
     })}
+    ${joinButton(meetingUrl)}
     <p style="margin-top:22px;">We've sent ${mentor.name} a notification too. You can chat with them anytime in the SkillSwap app.</p>
     <p style="color:#888;font-size:12px;margin-top:20px;">Session #${session_id}</p>
   `;
@@ -162,22 +187,29 @@ async function sendBookingEmails({
       credits_label: "You earned",
       credits,
     })}
+    ${joinButton(meetingUrl)}
     <p style="margin-top:22px;">Open SkillSwap to say hello and prep for the session.</p>
     <p style="color:#888;font-size:12px;margin-top:20px;">Session #${session_id}</p>
   `;
+
+  const plainFooter = `\n\nJoin the video meeting: ${meetingUrl}\n(The room opens 10 minutes before the session starts.)`;
 
   await Promise.all([
     sendMail({
       to: learner.email,
       subject: `Booked: ${skill_name} with ${mentor.name}`,
       html: baseWrap("Your session is booked", learnerBody),
-      text: `Your session is booked.\n\nSkill: ${skill_name}\nWhen: ${when}\nMentor: ${mentor.name}\nYou spent: ${credits} credits\n\nSession #${session_id}`,
+      text:
+        `Your session is booked.\n\nSkill: ${skill_name}\nWhen: ${when}\nMentor: ${mentor.name}\nYou spent: ${credits} credits\n\nSession #${session_id}` +
+        plainFooter,
     }),
     sendMail({
       to: mentor.email,
       subject: `New booking from ${learner.name}`,
       html: baseWrap("New booking on your calendar", mentorBody),
-      text: `New booking on your calendar.\n\nSkill: ${skill_name}\nWhen: ${when}\nLearner: ${learner.name}\nYou earned: ${credits} credits\n\nSession #${session_id}`,
+      text:
+        `New booking on your calendar.\n\nSkill: ${skill_name}\nWhen: ${when}\nLearner: ${learner.name}\nYou earned: ${credits} credits\n\nSession #${session_id}` +
+        plainFooter,
     }),
   ]);
 }

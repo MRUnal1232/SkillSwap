@@ -8,6 +8,7 @@ import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
+import Meeting from "@/pages/Meeting";
 import Marketplace from "@/pages/Marketplace";
 import Profile from "@/pages/Profile";
 import BookSession from "@/pages/BookSession";
@@ -88,6 +89,14 @@ export default function App() {
                 <AdminRoute>
                   <Admin />
                 </AdminRoute>
+              }
+            />
+            <Route
+              path="/meeting/:id"
+              element={
+                <ProtectedRoute>
+                  <Meeting />
+                </ProtectedRoute>
               }
             />
             <Route
